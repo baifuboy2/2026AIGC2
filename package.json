@@ -1,0 +1,5 @@
+{
+  "name": "pay-proxy",
+  "scripts": { "start": "node railway.js" },
+  "engines": { "node": ">=18" }
+}
