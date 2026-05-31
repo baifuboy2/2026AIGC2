@@ -3,7 +3,12 @@ var fs = require('fs');
 var path = require('path');
 var PORT = process.env.PORT || 8080;
 var ZHIFU = 'https://api-4yyy23efihhc.zhifu.fm.it88168.com/api';
+
+// 文件持久化存储（重启不丢失）
+var DATA_FILE = path.join(__dirname, 'paid.json');
 var paidOrders = {};
+try { paidOrders = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch(e) { paidOrders = {}; }
+function savePaid() { fs.writeFileSync(DATA_FILE, JSON.stringify(paidOrders)); }
 
 http.createServer(function(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,8 +24,8 @@ http.createServer(function(req, res) {
       var m = req.url.match(/[&?]orderNo=([^&]+)/i);
       if (!m) m = req.url.match(/[&?]order_no=([^&]+)/i);
       if (!m) m = req.url.match(/[&?]out_trade_no=([^&]+)/i);
-      if (m) { paidOrders[m[1]] = true; console.log('PAID(GET):', m[1]); }
-      paidOrders['__last'] = req.url;
+      if (m) { paidOrders[m[1]] = true; savePaid(); console.log('PAID(GET):', m[1]); }
+      paidOrders['__last'] = req.url; savePaid();
       res.writeHead(200); res.end('success');
       return;
     }
@@ -30,7 +35,7 @@ http.createServer(function(req, res) {
     req.on('end', function() {
       paidOrders['__last'] = body; console.log('NOTIFY POST:', body);
       var m = body.match(/(?:orderNo|order_no|out_trade_no|oid)=([^&]+)/i);
-      if (m) { paidOrders[m[1]] = true; console.log('PAID:', m[1]); }
+      if (m) { paidOrders[m[1]] = true; savePaid(); console.log('PAID:', m[1]); }
       res.writeHead(200); res.end('success');
     });
     return;
