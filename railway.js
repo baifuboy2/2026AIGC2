@@ -13,10 +13,14 @@ http.createServer(function(req, res) {
 
   // zhifu 回调通知 — 同时接受 GET 和 POST
   if (req.url.indexOf('/notify') === 0) {
-    // GET 回调（默认模式）：参数在 URL
+    // GET 回调：参数在 URL
     if (req.method === 'GET') {
-      var m = req.url.match(/(?:orderNo|order_no|out_trade_no|oid)=([^&]+)/i);
-      if (m) { paidOrders[m[1]] = true; paidOrders['__last'] = req.url; console.log('PAID(GET):', m[1]); }
+      // 用 [&?] 精确匹配参数名，避免 platformOrderNo 误匹配
+      var m = req.url.match(/[&?]orderNo=([^&]+)/i);
+      if (!m) m = req.url.match(/[&?]order_no=([^&]+)/i);
+      if (!m) m = req.url.match(/[&?]out_trade_no=([^&]+)/i);
+      if (m) { paidOrders[m[1]] = true; console.log('PAID(GET):', m[1]); }
+      paidOrders['__last'] = req.url;
       res.writeHead(200); res.end('success');
       return;
     }
