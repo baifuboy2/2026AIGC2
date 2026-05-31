@@ -11,21 +11,22 @@ http.createServer(function(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
-  // zhifu 回调通知 — 接收多种参数格式
-  if (req.url.indexOf('/notify') === 0 && req.method === 'POST') {
+  // zhifu 回调通知 — 同时接受 GET 和 POST
+  if (req.url.indexOf('/notify') === 0) {
+    // GET 回调（默认模式）：参数在 URL
+    if (req.method === 'GET') {
+      var m = req.url.match(/(?:orderNo|order_no|out_trade_no|oid)=([^&]+)/i);
+      if (m) { paidOrders[m[1]] = true; paidOrders['__last'] = req.url; console.log('PAID(GET):', m[1]); }
+      res.writeHead(200); res.end('success');
+      return;
+    }
+    // POST 回调（apiMode=post_form）
     var body = '';
     req.on('data', function(c) { body += c; });
     req.on('end', function() {
-      console.log('NOTIFY RAW:', body);
-      // 尝试多种参数名：orderNo, order_no, out_trade_no, oid
+      paidOrders['__last'] = body; console.log('NOTIFY POST:', body);
       var m = body.match(/(?:orderNo|order_no|out_trade_no|oid)=([^&]+)/i);
       if (m) { paidOrders[m[1]] = true; console.log('PAID:', m[1]); }
-      // 也存 merchantNum 做备用匹配
-      var mn = body.match(/(?:merchantNum)=([^&]+)/i);
-      var on2 = body.match(/(?:orderNo|order_no)=([^&]+)/i);
-      if (on2) { paidOrders[on2[1]] = true; }
-      // 记录最后一次收到的完整回调
-      paidOrders['__last'] = body;
       res.writeHead(200); res.end('success');
     });
     return;
