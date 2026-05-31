@@ -11,25 +11,32 @@ http.createServer(function(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
-  // zhifu 回调通知
+  // zhifu 回调通知 — 接收多种参数格式
   if (req.url.indexOf('/notify') === 0 && req.method === 'POST') {
     var body = '';
     req.on('data', function(c) { body += c; });
     req.on('end', function() {
-      console.log('NOTIFY:', body);
-      var match = body.match(/orderNo=([^&]+)/);
-      if (match) { paidOrders[match[1]] = true; console.log('PAID:', match[1]); }
+      console.log('NOTIFY RAW:', body);
+      // 尝试多种参数名：orderNo, order_no, out_trade_no, oid
+      var m = body.match(/(?:orderNo|order_no|out_trade_no|oid)=([^&]+)/i);
+      if (m) { paidOrders[m[1]] = true; console.log('PAID:', m[1]); }
+      // 也存 merchantNum 做备用匹配
+      var mn = body.match(/(?:merchantNum)=([^&]+)/i);
+      var on2 = body.match(/(?:orderNo|order_no)=([^&]+)/i);
+      if (on2) { paidOrders[on2[1]] = true; }
+      // 记录最后一次收到的完整回调
+      paidOrders['__last'] = body;
       res.writeHead(200); res.end('success');
     });
     return;
   }
 
-  // 查询支付状态
+  // 查询支付状态 + 查看最近回调日志
   if (req.url.indexOf('/check') === 0) {
     var m = req.url.match(/orderNo=([^&]+)/);
     var orderNo = m ? decodeURIComponent(m[1]) : '';
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ paid: !!paidOrders[orderNo] }));
+    res.end(JSON.stringify({ paid: !!paidOrders[orderNo], lastNotify: paidOrders['__last'] || '(none)' }));
     return;
   }
 
